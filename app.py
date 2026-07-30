@@ -1,10 +1,9 @@
+import base64
 import cv2
 import numpy as np
-from flask import Flask, render_template, jsonify, Response
-import time
-import threading
+from flask import Flask, render_template_string, request, jsonify
 
-# MediaPipe Solutions Direct Sub-module Imports
+# MediaPipe Face Mesh Import
 import mediapipe as mp
 try:
     from mediapipe.python.solutions import face_mesh as mp_face_mesh
@@ -33,21 +32,6 @@ def calculate_ear(landmarks, eye_indices, img_w, img_h):
     if h == 0:
         return 0.0
     return (v1 + v2) / (2.0 * h)
-
-current_telemetry = {
-    "state": "RELAXED",
-    "metrics": {"ear": 0.30, "estimated_hr": 72, "hrv": 60.0},
-    "config": {
-        "title": "🧘 RELAXED & CALM STATE",
-        "bg_gradient": "linear-gradient(135deg, #092013 0%, #174226 100%)",
-        "card_border": "#00e676",
-        "light_color": "🟢 Soft Emerald Green",
-        "light_hex": "#00e676",
-        "soundscape": "🌧️ Ambient Forest Rain",
-        "hvac": "❄️ 23.5°C (Comfort)",
-        "advice": "✨ Normal gaze detected. Maintaining calm ambient space."
-    }
-}
 
 CONFIGS = {
     "HIGH_STRESS": {
@@ -92,22 +76,26 @@ CONFIGS = {
     }
 }
 
-global_cap = None
+@app.route('/')
+def index():
+    with open('index.html', 'r', encoding='utf-8') as f:
+        html_content = f.read()
+    return render_template_string(html_content)
 
-def analyze_webcam_frame():
-    global global_cap
-    global_cap = cv2.VideoCapture(0)
-    closed_eye_frames = 0
+@app.route('/process_frame', methods=['POST'])
+def process_frame():
+    try:
+        data = request.json
+        if not data or 'image' not in data:
+            return jsonify({'success': False, 'message': 'No image data'})
 
-    while True:
-        if global_cap is None or not global_cap.isOpened():
-            time.sleep(0.1)
-            continue
+        image_data = data['image'].split(',')[1]
+        decoded_data = base64.b64decode(image_data)
+        np_arr = np.frombuffer(decoded_data, np.uint8)
+        frame = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
 
-        ret, frame = global_cap.read()
-        if not ret:
-            time.sleep(0.05)
-            continue
+        if frame is None:
+            return jsonify({'success': False, 'message': 'Invalid image frame'})
 
         h, w, _ = frame.shape
         rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
@@ -120,46 +108,40 @@ def analyze_webcam_frame():
             avg_ear = round(float((left_ear + right_ear) / 2.0), 2)
 
             if avg_ear < 0.20:
-                closed_eye_frames += 1
-                state = "FATIGUE_DROWSY" if closed_eye_frames > 2 else "HIGH_STRESS"
+                state = "FATIGUE_DROWSY"
             else:
-                closed_eye_frames = 0
                 state = "DEEP_FOCUS" if 0.20 <= avg_ear <= 0.26 else "RELAXED"
 
             est_hr = 85 if state == "HIGH_STRESS" else (68 if state == "RELAXED" else (78 if state == "FATIGUE_DROWSY" else 72))
             est_hrv = 30.0 if state == "HIGH_STRESS" else (62.0 if state == "RELAXED" else (42.0 if state == "FATIGUE_DROWSY" else 50.0))
 
-            current_telemetry["state"] = state
-            current_telemetry["metrics"] = {"ear": avg_ear, "estimated_hr": est_hr, "hrv": est_hrv}
-            current_telemetry["config"] = CONFIGS[state]
+            return jsonify({
+                "success": True,
+                "state": state,
+                "metrics": {"ear": avg_ear, "estimated_hr": est_hr, "hrv": est_hrv},
+                "config": CONFIGS[state]
+            })
 
-        time.sleep(0.05)
+        return jsonify({
+            "success": True,
+            "state": "NO_FACE",
+            "metrics": {"ear": 0.0, "estimated_hr": 0, "hrv": 0.0},
+            "config": {
+                "title": "🔍 NO FACE DETECTED",
+                "bg_gradient": "linear-gradient(135deg, #111 0%, #222 100%)",
+                "card_border": "#666",
+                "light_color": "⚪ Searching...",
+                "light_hex": "#ffffff",
+                "soundscape": "🔇 None",
+                "hvac": "❄️ Auto Mode",
+                "advice": "Please align your face in front of the camera."
+            }
+        })
 
-def gen_frames():
-    while True:
-        if global_cap is not None and global_cap.isOpened():
-            ret, frame = global_cap.read()
-            if ret:
-                ret, buffer = cv2.imencode('.jpg', frame)
-                frame_bytes = buffer.tobytes()
-                yield (b'--frame\r\n'
-                       b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
-        time.sleep(0.04)
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
 
-@app.route('/')
-def index():
-    return render_template('index.html')
+# Vercel handler
+app = app
 
-@app.route('/video_feed')
-def video_feed():
-    return Response(gen_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
-
-@app.route('/api/biometrics')
-def get_biometrics():
-    return jsonify(current_telemetry)
-
-if __name__ == '__main__':
-    t = threading.Thread(target=analyze_webcam_frame)
-    t.daemon = True
-    t.start()
-    app.run(debug=False, port=5000)
+            
