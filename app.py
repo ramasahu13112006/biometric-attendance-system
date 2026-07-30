@@ -49,80 +49,147 @@ HTML_TEMPLATE = """
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Biometric Environment AI</title>
 
+    <!-- MediaPipe & Chart.js CDN -->
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', sans-serif; transition: all 0.3s ease; }
-        body { min-height: 100vh; display: flex; justify-content: center; align-items: center; padding: 20px; color: #fff; background: #0f172a; }
-        .dashboard { width: 100%; max-width: 480px; background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border-radius: 24px; padding: 25px; border: 2px solid #00e676; box-shadow: 0 8px 32px rgba(0,0,0,0.5); text-align: center; }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', sans-serif; transition: background 0.5s ease, border-color 0.5s ease; }
+        html { scroll-behavior: smooth; }
+        body { min-height: 200vh; display: flex; flex-direction: column; align-items: center; padding: 20px; color: #fff; background: #0f172a; }
+        
+        /* Main Dashboard Section */
+        .section { width: 100%; max-width: 500px; min-height: 90vh; display: flex; flex-direction: column; justify-content: center; align-items: center; margin-bottom: 40px; }
+        .dashboard { width: 100%; background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border-radius: 24px; padding: 25px; border: 2px solid #00e676; box-shadow: 0 8px 32px rgba(0,0,0,0.5); text-align: center; }
+        
         h1 { font-size: 1.2rem; margin-bottom: 15px; }
-        .video-box { width: 100%; height: 230px; border-radius: 16px; overflow: hidden; background: #000; margin-bottom: 15px; border: 1px solid rgba(255, 255, 255, 0.2); }
+        .video-box { width: 100%; height: 220px; border-radius: 16px; overflow: hidden; background: #000; margin-bottom: 15px; border: 1px solid rgba(255, 255, 255, 0.2); }
         video { width: 100%; height: 100%; object-fit: cover; }
+        
         .metrics-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 15px; }
         .metric-card { background: rgba(0,0,0,0.3); padding: 10px; border-radius: 12px; }
         .metric-card h4 { font-size: 0.75rem; color: #aaa; margin-bottom: 4px; }
         .metric-card p { font-size: 1rem; font-weight: bold; }
+        
         .info-box { background: rgba(0, 0, 0, 0.25); padding: 12px; border-radius: 12px; text-align: left; font-size: 0.85rem; line-height: 1.5; }
+        
+        .scroll-hint { margin-top: 15px; font-size: 0.85rem; color: #888; animation: bounce 1.5s infinite; }
+        @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(6px); } }
 
+        /* Graph Card Section */
+        .chart-card { width: 100%; background: rgba(0, 0, 0, 0.4); backdrop-filter: blur(16px); border-radius: 24px; padding: 20px; border: 1px solid rgba(255, 255, 255, 0.15); box-shadow: 0 8px 32px rgba(0,0,0,0.5); }
+        .chart-card h2 { font-size: 1.1rem; margin-bottom: 15px; text-align: center; color: #00d2ff; }
+        .chart-container { position: relative; height: 260px; width: 100%; }
+
+        /* Responsive Design */
         @media screen and (max-width: 480px) {
             body { padding: 10px; }
-            .dashboard { padding: 15px; border-radius: 18px; }
-            h1 { font-size: 1rem; margin-bottom: 10px; }
-            .video-box { height: 180px; }
+            .dashboard, .chart-card { padding: 15px; border-radius: 18px; }
+            .video-box { height: 170px; }
             .metrics-grid { gap: 6px; }
-            .metric-card { padding: 8px 5px; }
-            .metric-card h4 { font-size: 0.65rem; }
-            .metric-card p { font-size: 0.85rem; }
-            .info-box { font-size: 0.75rem; padding: 10px; }
-        }
-        @media screen and (max-width: 360px) {
-            .metrics-grid { grid-template-columns: 1fr; }
-            .video-box { height: 150px; }
-        }
-        @media screen and (min-width: 768px) {
-            .dashboard { max-width: 550px; padding: 30px; }
-            h1 { font-size: 1.4rem; }
-            .video-box { height: 260px; }
-            .metric-card p { font-size: 1.1rem; }
-            .info-box { font-size: 0.9rem; }
+            .metric-card { padding: 6px 3px; }
+            .metric-card h4 { font-size: 0.6rem; }
+            .metric-card p { font-size: 0.8rem; }
         }
     </style>
 </head>
 <body>
-    <div id="main-dashboard" class="dashboard">
-        <h1 id="state-title">🧘 RELAXED & CALM STATE</h1>
 
-        <div class="video-box">
-            <video id="webcam" autoplay playsinline muted></video>
+    <!-- SECTION 1: MAIN BIOMETRIC DASHBOARD -->
+    <div class="section">
+        <div id="main-dashboard" class="dashboard">
+            <h1 id="state-title">🧘 RELAXED & CALM STATE</h1>
+
+            <div class="video-box">
+                <video id="webcam" autoplay playsinline muted></video>
+            </div>
+
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <h4>EAR</h4>
+                    <p id="metric-ear">0.30</p>
+                </div>
+                <div class="metric-card">
+                    <h4>Heart Rate</h4>
+                    <p id="metric-hr">72 BPM</p>
+                </div>
+                <div class="metric-card">
+                    <h4>HRV</h4>
+                    <p id="metric-hrv">60 ms</p>
+                </div>
+            </div>
+
+            <div class="info-box">
+                <div><strong>Lighting:</strong> <span id="light-val">🟢 Soft Emerald Green</span></div>
+                <div><strong>Sound:</strong> <span id="sound-val">🌧️ Ambient Forest Rain</span></div>
+                <div><strong>HVAC:</strong> <span id="hvac-val">❄️ 23.5°C (Comfort)</span></div>
+                <hr style="margin: 8px 0; border: 0; border-top: 1px solid rgba(255,255,255,0.1);">
+                <div id="advice-val">✨ Normal gaze detected. Maintaining calm ambient space.</div>
+            </div>
         </div>
+        <div class="scroll-hint">👇 Scroll down for Live Biometric Graph</div>
+    </div>
 
-        <div class="metrics-grid">
-            <div class="metric-card">
-                <h4>EAR</h4>
-                <p id="metric-ear">0.30</p>
+    <!-- SECTION 2: GRAPH ON SCROLL -->
+    <div class="section" id="graph-section">
+        <div class="chart-card">
+            <h2>📈 Real-Time Eye Aspect Ratio (EAR) Graph</h2>
+            <div class="chart-container">
+                <canvas id="earChart"></canvas>
             </div>
-            <div class="metric-card">
-                <h4>Heart Rate</h4>
-                <p id="metric-hr">72 BPM</p>
-            </div>
-            <div class="metric-card">
-                <h4>HRV</h4>
-                <p id="metric-hrv">60 ms</p>
-            </div>
-        </div>
-
-        <div class="info-box">
-            <div><strong>Lighting:</strong> <span id="light-val">🟢 Soft Emerald Green</span></div>
-            <div><strong>Sound:</strong> <span id="sound-val">🌧️ Ambient Forest Rain</span></div>
-            <div><strong>HVAC:</strong> <span id="hvac-val">❄️ 23.5°C (Comfort)</span></div>
-            <hr style="margin: 8px 0; border: 0; border-top: 1px solid rgba(255,255,255,0.1);">
-            <div id="advice-val">✨ Normal gaze detected. Maintaining calm ambient space.</div>
         </div>
     </div>
 
     <script>
         const videoElement = document.getElementById('webcam');
+        let earDataArray = [];
+        let labelArray = [];
+        let chartInstance = null;
+        let chartInitialized = false;
+
+        // Initialize Chart
+        function initChart() {
+            const ctx = document.getElementById('earChart').getContext('2d');
+            chartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labelArray,
+                    datasets: [{
+                        label: 'EAR Ratio',
+                        data: earDataArray,
+                        borderColor: '#00e676',
+                        backgroundColor: 'rgba(0, 230, 118, 0.15)',
+                        fill: true,
+                        tension: 0.4,
+                        borderWidth: 2,
+                        pointRadius: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: { duration: 1000 },
+                    scales: {
+                        x: { ticks: { color: '#888' }, grid: { display: false } },
+                        y: { min: 0.1, max: 0.4, ticks: { color: '#888' }, grid: { color: 'rgba(255,255,255,0.05)' } }
+                    },
+                    plugins: { legend: { display: false } }
+                }
+            });
+        }
+
+        // Trigger Graph Animation on Scroll using IntersectionObserver
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting && !chartInitialized) {
+                    initChart();
+                    chartInitialized = true;
+                }
+            });
+        }, { threshold: 0.3 });
+
+        observer.observe(document.getElementById('graph-section'));
 
         function calcEAR(landmarks, indices) {
             const p = indices.map(i => landmarks[i]);
@@ -145,6 +212,19 @@ HTML_TEMPLATE = """
                 const rightEAR = calcEAR(landmarks, [33, 160, 158, 133, 153, 144]);
                 const avgEAR = (leftEAR + rightEAR) / 2.0;
 
+                // Store graph data points
+                const timeStamp = new Date().toLocaleTimeString().split(' ')[0];
+                if (earDataArray.length > 15) {
+                    earDataArray.shift();
+                    labelArray.shift();
+                }
+                earDataArray.push(avgEAR.toFixed(2));
+                labelArray.push(timeStamp);
+
+                if (chartInstance) {
+                    chartInstance.update();
+                }
+
                 fetch('/api/analyze', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -165,6 +245,10 @@ HTML_TEMPLATE = """
                         document.getElementById('sound-val').innerText = data.config.soundscape;
                         document.getElementById('hvac-val').innerText = data.config.hvac;
                         document.getElementById('advice-val').innerText = data.config.advice;
+
+                        if (chartInstance) {
+                            chartInstance.data.datasets[0].borderColor = data.config.card_border;
+                        }
                     }
                 });
             }
@@ -207,3 +291,4 @@ def analyze():
     })
 
 app = app
+                        
