@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🧠 Neuro-Responsive Space & Real-Time Graph</title>
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, sans-serif; }
+        body {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            color: #ffffff;
+            transition: background 1.2s ease-in-out;
+            padding: 20px;
+            overflow-y: auto;
+        }
+        .main-wrapper {
+            max-width: 950px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
+        }
+        .dashboard, .graph-section {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 20px;
+            padding: 25px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+            transition: border-color 0.8s ease;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding-bottom: 15px;
+        }
+        .status-badge {
+            padding: 8px 18px;
+            border-radius: 30px;
+            font-weight: 700;
+            font-size: 0.9rem;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: all 0.5s ease;
+        }
+        .cam-box {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .cam-feed {
+            width: 100%;
+            max-width: 380px;
+            height: 220px;
+            border-radius: 15px;
+            border: 3px solid rgba(255, 255, 255, 0.2);
+            object-fit: cover;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.4);
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .card {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 15px;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .card h3 { font-size: 0.85rem; color: #94a3b8; margin-bottom: 8px; text-transform: uppercase; }
+        .metric-val { font-size: 1.6rem; font-weight: bold; }
+        .light-indicator {
+            display: inline-block;
+            width: 14px; height: 14px;
+            border-radius: 50%; margin-right: 8px;
+            box-shadow: 0 0 10px currentColor;
+        }
+        .advice-box {
+            background: rgba(255, 255, 255, 0.07);
+            padding: 15px; border-radius: 10px;
+            font-size: 0.95rem; line-height: 1.4; color: #cbd5e1;
+        }
+        .scroll-down-hint {
+            text-align: center;
+            font-size: 0.85rem;
+            color: #94a3b8;
+            margin-top: 15px;
+            animation: bounce 2s infinite;
+        }
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+            40% { transform: translateY(-6px); }
+            60% { transform: translateY(-3px); }
+        }
+        canvas {
+            width: 100% !important;
+            max-height: 320px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="main-wrapper">
+        <!-- 🏛️ Main Biometric Dashboard -->
+        <div class="dashboard" id="dashCard">
+            <div class="header">
+                <div>
+                    <h2>🏛️ Neuro-Responsive Space</h2>
+                    <p style="color: #94a3b8; font-size: 0.85rem;">🎥 Live Webcam Biometric Architecture</p>
+                </div>
+                <div class="status-badge" id="statusBadge">🔄 Connecting Camera...</div>
+            </div>
+
+            <!-- 📹 Live Webcam Box -->
+            <div class="cam-box">
+                <img src="{{ url_for('video_feed') }}" class="cam-feed" alt="Live Webcam Feed 📷">
+            </div>
+
+            <!-- 📊 Telemetry Metrics -->
+            <h3 style="margin-bottom: 10px; color: #cbd5e1;">📊 Live Telemetry Data</h3>
+            <div class="grid">
+                <div class="card">
+                    <h3>👁️ Eye Aspect Ratio (EAR)</h3>
+                    <div class="metric-val" id="earVal">0.00</div>
+                </div>
+                <div class="card">
+                    <h3>❤️ Est. Heart Rate</h3>
+                    <div class="metric-val" id="hrVal">-- BPM</div>
+                </div>
+                <div class="card">
+                    <h3>📈 Est. HRV (Stress)</h3>
+                    <div class="metric-val" id="hrvVal">-- ms</div>
+                </div>
+            </div>
+
+            <!-- ⚡ Environmental Actuators -->
+            <h3 style="margin-bottom: 10px; color: #cbd5e1;">⚡ Active Environmental Actuators</h3>
+            <div class="grid">
+                <div class="card">
+                    <h3>💡 Smart Lighting</h3>
+                    <div class="metric-val" style="font-size: 0.95rem; display: flex; align-items: center;">
+                        <span class="light-indicator" id="lightBulb"></span>
+                        <span id="lightVal">--</span>
+                    </div>
+                </div>
+                <div class="card">
+                    <h3>🔊 Adaptive Acoustics</h3>
+                    <div class="metric-val" id="soundVal" style="font-size: 0.9rem;">--</div>
+                </div>
+                <div class="card">
+                    <h3>🌡️ HVAC Temperature</h3>
+                    <div class="metric-val" id="tempVal" style="font-size: 1.05rem;">--</div>
+                </div>
+            </div>
+
+            <div class="advice-box" id="adviceBox">
+                🤖 Vision AI Engine Active...
+            </div>
+
+            <div class="scroll-down-hint">
+                ⬇️ Scroll down to view Real-Time Telemetry Trend Graph 📈
+            </div>
+        </div>
+
+        <!-- 📉 Scroll Down Section: Live Chart -->
+        <div class="graph-section" id="graphCard">
+            <h2 style="margin-bottom: 10px; color: #38bdf8;">📈 Real-Time Biometric & Stress Trend Analysis</h2>
+            <p style="color: #94a3b8; font-size: 0.85rem; margin-bottom: 20px;">
+                Continuous plotting of Eye Aspect Ratio (EAR) & Heart Rate (BPM) telemetry over time.
+            </p>
+            <canvas id="liveBiometricsChart"></canvas>
+        </div>
+    </div>
+
+    <script>
+        // --- Chart.js Setup ---
+        const maxDataPoints = 20;
+        const labels = [];
+        const earData = [];
+        const hrData = [];
+
+        const ctx = document.getElementById('liveBiometricsChart').getContext('2d');
+        const biometricsChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: '👁️ Eye Aspect Ratio (EAR)',
+                        data: earData,
+                        borderColor: '#00d2ff',
+                        backgroundColor: 'rgba(0, 210, 255, 0.15)',
+                        fill: true,
+                        tension: 0.4,
+                        borderWidth: 2,
+                        yAxisID: 'y1'
+                    },
+                    {
+                        label: '❤️ Heart Rate (BPM)',
+                        data: hrData,
+                        borderColor: '#ff4d4d',
+                        backgroundColor: 'rgba(255, 77, 77, 0.15)',
+                        fill: true,
+                        tension: 0.4,
+                        borderWidth: 2,
+                        yAxisID: 'y2'
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                interaction: { mode: 'index', intersect: false },
+                scales: {
+                    x: { ticks: { color: '#94a3b8' }, grid: { color: 'rgba(255,255,255,0.05)' } },
+                    y1: {
+                        type: 'linear',
+                        display: true,
+                        position: 'left',
+                        title: { display: true, text: 'EAR', color: '#00d2ff' },
+                        ticks: { color: '#00d2ff' },
+                        grid: { color: 'rgba(255,255,255,0.05)' },
+                        min: 0.1,
+                        max: 0.4
+                    },
+                    y2: {
+                        type: 'linear',
+                        display: true,
+                        position: 'right',
+                        title: { display: true, text: 'BPM', color: '#ff4d4d' },
+                        ticks: { color: '#ff4d4d' },
+                        grid: { drawOnChartArea: false },
+                        min: 50,
+                        max: 110
+                    }
+                },
+                plugins: {
+                    legend: { labels: { color: '#ffffff' } }
+                }
+            }
+        });
+
+        // --- Voice Assistant Feature ---
+        let lastSpokenState = "";
+        function speakMessage(text) {
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel();
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.rate = 1.0;
+                utterance.pitch = 1.0;
+                window.speechSynthesis.speak(utterance);
+            }
+        }
+
+        // --- Fetch Biometrics Data & Update Dashboard + Chart ---
+        async function fetchMetrics() {
+            try {
+                const res = await fetch('/api/biometrics');
+                const data = await res.json();
+
+                if (!data.config || !data.config.bg_gradient) return;
+
+                // Voice Trigger on Mental State Change
+                if (data.state && data.state !== lastSpokenState) {
+                    lastSpokenState = data.state;
+                    let speechText = "";
+                    if (data.state === "HIGH_STRESS") speechText = "Warning. High stress or facial strain detected. Adjusting environment.";
+                    else if (data.state === "FATIGUE_DROWSY") speechText = "Mental fatigue or drowsiness detected. Boosting brightness and cooling airflow.";
+                    else if (data.state === "DEEP_FOCUS") speechText = "Deep work state active. Circadian lighting optimized for focus.";
+                    
+                    if (speechText) speakMessage(speechText);
+                }
+
+                // Update Visual Theme & Borders
+                document.body.style.background = data.config.bg_gradient;
+                document.getElementById('dashCard').style.borderColor = data.config.card_border;
+                document.getElementById('graphCard').style.borderColor = data.config.card_border;
+
+                // Update Status Badge
+                const badge = document.getElementById('statusBadge');
+                badge.innerText = data.config.title;
+                badge.style.color = data.config.card_border;
+                badge.style.borderColor = data.config.card_border;
+
+                // Update Metrics
+                document.getElementById('earVal').innerText = `👁️ ${data.metrics.ear}`;
+                document.getElementById('hrVal').innerText = `❤️ ${data.metrics.estimated_hr} BPM`;
+                document.getElementById('hrvVal').innerText = `📈 ${data.metrics.hrv} ms`;
+
+                document.getElementById('lightVal').innerText = data.config.light_color;
+                const lightBulb = document.getElementById('lightBulb');
+                lightBulb.style.backgroundColor = data.config.light_hex;
+                lightBulb.style.color = data.config.light_hex;
+
+                document.getElementById('soundVal').innerText = data.config.soundscape;
+                document.getElementById('tempVal').innerText = data.config.hvac;
+
+                document.getElementById('adviceBox').innerHTML = `<strong>🤖 Vision AI Action:</strong> ${data.config.advice}`;
+
+                // Update Real-Time Chart
+                const now = new Date().toLocaleTimeString();
+                if (labels.length >= maxDataPoints) {
+                    labels.shift();
+                    earData.shift();
+                    hrData.shift();
+                }
+
+                labels.push(now);
+                earData.push(data.metrics.ear);
+                hrData.push(data.metrics.estimated_hr);
+
+                biometricsChart.update();
+
+            } catch (err) {
+                console.error("Telemetry fetch error:", err);
+            }
+        }
+
+        setInterval(fetchMetrics, 1000);
+        fetchMetrics();
+    </script>
+</body>
+                  </html>
